@@ -1,0 +1,145 @@
+name: issue-edited
+on:
+  issues:
+    types: [edited, closed, labeled]
+jobs:
+  issue-edited:
+    if: github.event.action != 'closed' && contains(github.event.issue.labels.*.name, 'question')
+    runs-on: ubuntu-latest
+    name: Send to Slack workflow When Issue Open/Edited
+    steps:
+      - name: Make Message
+        id: make-message
+        run: |
+          issue_body=$(
+          cat <<"EOF"
+          ${{ github.event.issue.body }}
+          EOF
+          )
+          # 先頭から200文字を出力
+          echo "${issue_body::200}" >> tmp
+
+          # JSON形式テキストに変換してOUTPUTに出力
+          # 改行コードが\r\nのものがあるため\rを削除して\nに統一
+          echo "message=$(cat tmp | tr -d '\r' | jq -Rs .)" >> $GITHUB_OUTPUT
+      - name: Send to Slack workflow
+        id: edited-slack
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "attachments": [
+                {
+                  "pretext": "${{ (github.event.action == 'labeled' ) && 'Issueが作成されました' || 'Issueが更新されました'}}",
+                  "color": "good",
+                  "fields": [
+                    {
+                      "title": "タイトル",
+                      "short": true,
+                      "value": "${{ github.event.issue.title }}"
+                    },
+                    {
+                      "title": "通知先",
+                      "short": true,
+                      "value": "${{ secrets.ISSUE_EDITED_SLACK_MENTION }}"
+                    },
+                    {
+                      "title": "Issue URL",
+                      "short": true,
+                      "value": "${{ github.event.issue.html_url}}"
+                    },
+                    {
+                      "title": "リポジトリ",
+                      "short": true,
+                      "value": "${{ github.server_url }}/${{ github.repository }}"
+                    },
+                    {
+                      "title": "本文",
+                      "short": false,
+                      "value": ${{ steps.make-message.outputs.message }}
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.ISSUE_EDITED_SLACK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  issue-closed:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Send to Slack workflow When Issue Closed
+    steps:
+      - name: Make Closed Message
+        id: make-message
+        run: |
+          if [ ${{ github.event.issue.number }} -eq 1 ]; then
+            echo '*課題完了*' >> tmp
+          else
+            echo '-' >> tmp
+          fi
+
+          # JSON形式テキストに変換してOUTPUTに出力
+          echo "message=$(cat tmp | tr -d '\r' | jq -Rs .)" >> $GITHUB_OUTPUT
+      - name: Send to Slack workflow
+        id: edited-slack
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "attachments": [
+                {
+                  "pretext": "Issueがクローズされました",
+                  "color": "good",
+                  "fields": [
+                    {
+                      "title": "タイトル",
+                      "short": true,
+                      "value": "${{ github.event.issue.title }}"
+                    },
+                    {
+                      "title": "通知先",
+                      "short": true,
+                      "value": "${{ secrets.ISSUE_EDITED_SLACK_MENTION }}"
+                    },
+                    {
+                      "title": "Issue URL",
+                      "short": true,
+                      "value": "${{ github.event.issue.html_url}}"
+                    },
+                    {
+                      "title": "リポジトリ",
+                      "short": true,
+                      "value": "${{ github.server_url }}/${{ github.repository }}"
+                    },
+                    {
+                      "title": "Status",
+                      "short": false,
+                      "value": ${{ steps.make-message.outputs.message }}
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.ISSUE_EDITED_SLACK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  task-closed:
+    if: github.event.action == 'closed' && github.event.issue.number == 1
+    runs-on: ubuntu-latest
+    name: Create Flag File When Task Issue Closed
+    steps:
+      - name: Create remove-collabolator file
+        id: create-remove-collabolator
+        env:
+          DESTINATION_PATH: ".github/m-rec/remove-collabolator"
+        run: |
+          source=$(echo 0 | openssl base64 )          
+          curl -o /dev/null -w "status: %{http_code}" \
+          -X PUT \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          https://api.github.com/repos/${{ github.repository }}/contents/${{ env.DESTINATION_PATH }} \
+          -d '{"message":"Created remove-collabolator.","content":"'$source'"}'\
