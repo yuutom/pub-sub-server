@@ -1,0 +1,338 @@
+openapi: "3.0.0"
+info:
+  title: Pub/Sub Server
+  version: "0.0.1"
+  description: API document
+tags:
+  - name: topic
+    description: APIs related to topic resources
+  - name: message
+    description: APIs related to message resources
+paths:
+  /topic/register:
+    post:
+      tags:
+        - topic
+      operationId: registerTopic
+      summary: register topic
+      description: Create a topic associated with a publisher. Topics with the same name cannot be created with the same publisher.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                publisherId:
+                  type: integer
+                  format: int64
+                  description: The ID of the user registering the topic
+                topicName:
+                  type: string
+                  maxLength: 64
+                  minLength: 1
+                  description: The name of the topic to register
+              required:
+                - publisherId
+                - topicName
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopicRegisterResponse"
+        400:
+          description: BAD REQUEST
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        409:
+          description: CONFLICT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /topic/subscribe:
+    post:
+      tags:
+        - topic
+      operationId: subscribeTopic
+      summary: subscribe topic
+      description: Subscribe a topic. You cannot subscribe to a topic that does not exist or has already been subscribed to.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ownerPublisherId:
+                  type: integer
+                  format: int64
+                  description: The ID of the owner publisher with the topic
+                topicName:
+                  type: string
+                  maxLength: 64
+                  minLength: 1
+                  description: The name of the topic to register
+                subscriberId:
+                  type: integer
+                  format: int64
+                  description: The ID of the subscriber subscribing to the topic
+              required:
+                - publisherId
+                - topicName
+                - subscriberId
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopicSubscribeResponse"
+        400:
+          description: BAD REQUEST
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: NOT FOUND
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        409:
+          description: CONFLICT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /message/publish:
+    post:
+      tags:
+        - message
+      operationId: publishMessage
+      summary: publish message
+      description: Publish a message to a owned topic. You cannot publish a message to a topic that you did not create.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                publisherId:
+                  type: integer
+                  format: int64
+                  description: The ID of the user registering the topic
+                topicName:
+                  type: string
+                  maxLength: 64
+                  minLength: 1
+                  description: The name of the topic to register
+                messageContent:
+                  type: object
+                  description: "message object. You can specify any string in the json structure. </br>ex. {\"key_1\": \"value_1\",\"key_2\": \"value_2\"} </br>Maximum size is 128KB."
+                  additionalProperties: true
+              required:
+                - publisherId
+                - topicName
+                - messageContent
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagePublishResponse"
+        400:
+          description: BAD REQUEST
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: UNAUTHORIZED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: NOT FOUND
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        413:
+          description: PAYLOAD TOO LARGE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /message/ack:
+    post:
+      tags:
+        - message
+      operationId: ackMessage
+      summary: ack message
+      description: ack published message. Once a message has been acked, it cannot be retrieved again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageId:
+                  type: integer
+                  format: int64
+                  description: The ID of the published message
+                subscriberId:
+                  type: integer
+                  format: int64
+                  description: The ID of the subscriber subscribing to the topic
+              required:
+                - messageId
+      responses:
+        200:
+          description: OK
+        400:
+          description: BAD REQUEST
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /message/get:
+    get:
+      tags:
+        - message
+      operationId: getMessage
+      summary: get message
+      description: get a published message. You cannot get messages for topics that you have not subscribed to. Also, after subscribing, you will get the latest message.
+      parameters:
+        - name: topicName
+          in: query
+          description: The name of the topic to register
+          required: true
+          schema:
+            type: string
+            maxLength: 64
+            minLength: 1
+        - name: ownerPublisherId
+          in: query
+          required: true
+          description: The ID of the owner publisher with the topic
+          schema:
+            type: integer
+            format: int64
+        - name: subscriberId
+          in: query
+          description: The ID of the subscriber subscribing to the topic
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageGetResponse"
+        400:
+          description: BAD REQUEST
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: UNAUTHORIZED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: NOT FOUND
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    TopicRegisterResponse:
+      type: object
+      properties:
+        topicId:
+          type: integer
+          format: int64
+        topicName:
+          type: string
+      required:
+        - topicId
+        - topicName
+    TopicSubscribeResponse:
+      type: object
+      properties:
+        topicId:
+          type: integer
+          format: int64
+        topicName:
+          type: string
+      required:
+        - topicId
+        - topicName
+    MessagePublishResponse:
+      type: object
+      properties:
+        messageId:
+          type: integer
+          format: int64
+        messageContent:
+          type: object
+          additionalProperties: true
+      required:
+        - messageId
+        - messageContent
+    MessageGetResponse:
+      type: object
+      properties:
+        messageId:
+          type: integer
+          format: int64
+        messageContent:
+          type: object
+          additionalProperties: true
+      required:
+        - messageId
+        - messageContent
+    ErrorResponse:
+      description: Topic already exists
+      type: object
+      properties:
+        title:
+          type: string
+          description: error title
+        detail:
+          type: string
+          description: error detail
+        params:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvalidParam"
+      required:
+        - title
+        - detail
+    InvalidParam:
+      description: invalid param detail
+      type: object
+      properties:
+        name:
+          type: string
+          description: field name
+        reason:
+          type: string
+          description: error reason
