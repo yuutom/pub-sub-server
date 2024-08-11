@@ -9,6 +9,9 @@
 plugins {
     // Apply the java-library plugin to add support for Java Library
     id 'java-library'
+    id 'org.springframework.boot' version '3.3.2'
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'org.openapi.generator' version '7.7.0'
 }
 
 repositories {
@@ -24,14 +27,58 @@ dependencies {
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
     implementation 'com.google.guava:guava:28.0-jre'
 
+    // spring
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
+    implementation 'org.mybatis:mybatis:3.5.15'
+    runtimeOnly 'com.h2database:h2'
+
+    // open api
+    implementation 'io.swagger.core.v3:swagger-annotations:2.2.8'
+    implementation 'org.openapitools:jackson-databind-nullable:0.2.6'
+
     // Use JUnit Jupiter API for testing.
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.4.2'
 
     // Use JUnit Jupiter Engine for testing.
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.4.2'
+
+    // lombok
+    compileOnly 'org.projectlombok:lombok:1.18.32'
+    annotationProcessor 'org.projectlombok:lombok:1.18.32'
+
+    // gson
+    implementation 'com.google.code.gson:gson:2.8.6'
+
+    // mockito
+    testImplementation 'org.mockito:mockito-core:3.11.2'
+    testImplementation 'org.mockito:mockito-junit-jupiter:3.11.2'
+    testImplementation "org.mockito:mockito-inline:5.2.0"
 }
 
 test {
     // Use junit platform for unit tests
     useJUnitPlatform()
 }
+
+task buildApiDoc(type: org.openapitools.generator.gradle.plugin.tasks.GenerateTask) {
+    generatorName.set("html2")
+    inputSpec.set("$rootDir/src/main/resources/api-schema.yaml")
+    outputDir.set("$buildDir/apidoc")
+}
+
+task buildSpringServer(type: org.openapitools.generator.gradle.plugin.tasks.GenerateTask) {
+    generatorName.set("spring")
+    inputSpec.set("$rootDir/src/main/resources/api-schema.yaml")
+    outputDir.set("$buildDir/spring")
+    apiPackage.set("com.mercari.merpay.pubsub.controller")
+    modelPackage.set("com.mercari.merpay.pubsub.model")
+    configOptions.set([
+            interfaceOnly: "true",
+            useSpringBoot3: "true"
+    ])
+}
+
+compileJava.dependsOn(tasks.buildSpringServer)
+sourceSets.main.java.srcDir("$buildDir/spring/src/main/java")

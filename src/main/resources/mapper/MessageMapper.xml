@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mercari.merpay.pubsub.repository.MessageMapper">
+
+    <resultMap id="MessageMap" type="com.mercari.merpay.pubsub.entity.Message">
+        <id column="MESSAGE_ID" jdbcType="INTEGER" property="messageId"/>
+        <result column="CONTENT" property="content" typeHandler="com.mercari.merpay.pubsub.JsonMapTypeHandler"/>
+    </resultMap>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="message.messageId">
+        INSERT INTO message (TOPIC_ID, CONTENT) VALUES (#{message.topicId}, #{contentString,jdbcType=VARCHAR})
+    </insert>
+
+    <insert id="insertAck">
+        INSERT IGNORE INTO ack (message_id, subscriber_id, acked) VALUES (#{messageId}, #{subscriberId}, TRUE);
+    </insert>
+
+    <select id="selectMessage" resultMap="MessageMap">
+        SELECT
+            m.message_id,
+            m.content
+        FROM message m
+            INNER JOIN subscription s ON m.topic_id = s.topic_id
+            LEFT JOIN ack a ON m.message_id = a.message_id AND a.subscriber_id = s.subscriber_id
+        WHERE s.topic_id = #{topicId}
+            AND s.owner_publisher_id = #{ownerPublisherId}
+            AND s.subscriber_id = #{subscriberId}
+            AND s.subscribe_date &lt; m.publish_date
+            AND (a.acked IS NULL OR a.acked != TRUE)
+        ORDER BY m.publish_date ASC
+        LIMIT 1
+    </select>
+</mapper>

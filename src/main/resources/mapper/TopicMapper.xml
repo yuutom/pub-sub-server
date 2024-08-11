@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mercari.merpay.pubsub.repository.TopicMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="topicId">
+        INSERT INTO topic (TOPIC_NAME, OWNER_PUBLISHER_ID) VALUES (#{topicName}, #{ownerPublisherId})
+    </insert>
+
+    <insert id="insertSubscription">
+        INSERT INTO subscription (TOPIC_ID, OWNER_PUBLISHER_ID, SUBSCRIBER_ID) VALUES (#{topicId}, #{ownerPublisherId}, #{subscriberId})
+    </insert>
+
+    <select id="findByPublisherIdAndTopicName" resultType="com.mercari.merpay.pubsub.entity.Topic">
+        SELECT
+            TOPIC_ID,
+            TOPIC_NAME,
+            OWNER_PUBLISHER_ID,
+            REGISTER_DATE
+        FROM
+            topic
+        WHERE
+            TOPIC_NAME = #{topicName}
+            AND OWNER_PUBLISHER_ID = #{ownerPublisherId}
+    </select>
+
+    <select id="findByTopicName" resultType="com.mercari.merpay.pubsub.entity.Topic">
+        SELECT
+            TOPIC_ID,
+            TOPIC_NAME,
+            OWNER_PUBLISHER_ID,
+            REGISTER_DATE
+        FROM
+            topic
+        WHERE
+            TOPIC_NAME = #{topicName}
+    </select>
+
+    <select id="existsByTopicIdAndSubscriberId">
+    SELECT EXISTS(
+        SELECT
+            1
+        FROM
+            subscription
+        WHERE
+            TOPIC_ID = #{topicId}
+            AND OWNER_PUBLISHER_ID = #{ownerPublisherId}
+            AND SUBSCRIBER_ID = #{subscriberId}
+    )
+    </select>
+
+</mapper>
