@@ -5,16 +5,7 @@ mybatis:
 
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
-    driverClassName: org.h2.Driver
-    username: sa
-    password:
-    initialize: ture
-    generate-unique-name: false
-  sql:
-    init:
-      encoding: UTF-8
-      schema-locations: classpath:h2/schema.sql
-  h2:
-    console:
-      enabled: true
+    url: jdbc:mysql://mysql-container:3306/mydatabase
+    username: root
+    password: my-secret-pw
+    driver-class-name: com.mysql.cj.jdbc.Driver
